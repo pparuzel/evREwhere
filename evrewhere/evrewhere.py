@@ -7,7 +7,7 @@ evREwhere can be used as a module or a separate utility program
 Examples needed here...
 '''
 
-from typing import Callable, Union, Iterable
+from typing import Callable, Union, Iterable, List
 
 import os
 import re
@@ -136,7 +136,7 @@ class PatternFinder:
         self.match_handler: Callable[[str, int, int, FileMatch], bool] = \
             PatternFinder.default_match_handler
 
-    def search(self, path: os.PathLike, recursive: bool = False) -> list[FileMatch]:
+    def search(self, path: os.PathLike, recursive: bool = False) -> List[FileMatch]:
         '''Perform search over file located at the specified path'''
         path = pathlib.Path(path)
         if path.is_file():
@@ -197,11 +197,11 @@ def main():
         if args.verbose:
             print(result)
         else:
-            lineno_part = f'{Fore.CYAN}:{Fore.GREEN}{result.lineno}' if args.display_lineno else ''
+            lineno_part = f'{Fore.GREEN}{result.lineno}{Fore.CYAN}:' if args.display_lineno else ''
             print(
-                Fore.MAGENTA + str(result.path) +
+                (f'{Fore.MAGENTA}{result.path}{Fore.CYAN}:' if args.recursive else '') +
                 str(lineno_part) +
-                f'{Fore.CYAN}:',
+                f'{Style.RESET_ALL}' +
                 args.template.format(result.match.group(0), *result.match.groups())
             )
 
