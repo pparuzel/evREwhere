@@ -46,8 +46,11 @@ def parse_arguments():
     '''Parse program arguments'''
     def postparse(args: argparse.Namespace):
         '''Post-parse program arguments'''
-        if args.path.is_dir() and not args.recursive:
-            raise ValueError('Supplied path is a directory but the search is not recursive')
+        if not args.recursive:
+            if args.path.is_dir():
+                raise ValueError('Supplied path is a directory but the search is not recursive')
+            if not os.path.exists(args.path):
+                raise ValueError('Supplied file is not readable or does not exist')
         return args
 
     parser = argparse.ArgumentParser()
@@ -160,6 +163,9 @@ class PatternFinder:
         except UnicodeDecodeError:
             # Likely tried to open a binary file for text output
             return
+        except OSError as error:
+            print(f'evre: {path}: {error.strerror}', file=sys.stderr)
+            return
         matches = self.pattern.finditer(content)
         if self.limit > 0:
             matches = limited(matches, self.limit)
@@ -197,11 +203,14 @@ def main():
         if args.verbose:
             print(result)
         else:
-            lineno_part = f'{Fore.GREEN}{result.lineno}{Fore.CYAN}:' if args.display_lineno else ''
             print(
+                # File path part
                 (f'{Fore.MAGENTA}{result.path}{Fore.CYAN}:' if args.recursive else '') +
-                str(lineno_part) +
+                # Line number part
+                (f'{Fore.GREEN}{result.lineno}{Fore.CYAN}:' if args.display_lineno else '') +
+                # Drop current style
                 f'{Style.RESET_ALL}' +
+                # Match
                 args.template.format(result.match.group(0), *result.match.groups())
             )
 
