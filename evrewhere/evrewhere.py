@@ -131,7 +131,7 @@ class PatternFinder:
             pattern
         )
         self.limit: int = limit
-        self.results: list[FileMatch] = []
+        self.results: List[FileMatch] = []
         self.with_lineno: bool = line_numbers
         self.match_handler: Callable[[str, int, int, FileMatch], bool] = \
             PatternFinder.default_match_handler
