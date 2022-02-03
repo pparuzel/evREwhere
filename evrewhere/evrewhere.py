@@ -15,7 +15,19 @@ import sys
 import pathlib
 import argparse
 import collections
-from colorama import init as init_colorama, Fore, Style
+
+if os.getenv('EVREDONTUSECOLOR', '') == '1':
+    def init_colorama(*_a, **_kw):
+        '''No colorama initializer'''
+
+    class NoColoramaWrapper:
+        '''No colorama wrapper'''
+        def __getattr__(self, _attr):
+            return ''
+
+    Fore = Style = NoColoramaWrapper()
+else:
+    from colorama import init as init_colorama, Fore, Style
 
 
 __all__ = ['PatternFinder', 'FileMatch']
