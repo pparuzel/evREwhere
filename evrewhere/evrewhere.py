@@ -7,7 +7,7 @@ evREwhere can be used as a module or a separate utility program
 Examples needed here...
 '''
 
-from typing import Callable, Union, Iterable, List
+from typing import Callable, Union, Iterable, List, IO
 
 import os
 import re
@@ -46,21 +46,24 @@ def parse_arguments():
     '''Parse program arguments'''
     def postparse(args: argparse.Namespace):
         '''Post-parse program arguments'''
-        if not args.recursive:
-            if args.path.is_dir():
-                raise ValueError('Supplied path is a directory but the search is not recursive')
-            if not os.path.exists(args.path):
-                raise ValueError('Supplied file is not readable or does not exist')
+        if args.with_filename is None:
+            args.with_filename = args.recursive or len(args.paths) > 1
+        elif args.verbose and not args.with_filename:
+            raise ValueError('--verbose does not support -h/--no-filename')
         return args
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument(
-        'path', type=pathlib.Path,
-        help='path to a directory (-r required) or file'
+        '--help', action='help', default=argparse.SUPPRESS,
+        help='show this help message and exit'
     )
     parser.add_argument(
         'pattern',
         help='pattern used in search'
+    )
+    parser.add_argument(
+        'paths', nargs='+', type=pathlib.Path,
+        help='path to a directory (-r required) or file'
     )
     parser.add_argument(
         '-r', action='store_true', dest='recursive', default=False,
@@ -71,8 +74,16 @@ def parse_arguments():
         help='maximum matches (default: no limit)'
     )
     parser.add_argument(
-        '-n', '--lineno', dest='display_lineno', action='store_true',
+        '-n', '--lineno', dest='with_lineno', action='store_true',
         help='whether to display line numbers (may affect performance)'
+    )
+    parser.add_argument(
+        '-H', '--with-filename', dest='with_filename', action='store_true', default=None,
+        help='print file name with output lines'
+    )
+    parser.add_argument(
+        '-h', '--no-filename', dest='with_filename', action='store_false', default=None,
+        help='suppress the file name prefix on output'
     )
     parser.add_argument(
         '-i', '--ignore-case', dest='case_insensitive', action='store_true',
@@ -106,12 +117,12 @@ class FileMatch:
 
     def __str__(self):
         return (
-            f'{Fore.MAGENTA}{self.path.name}{Fore.BLUE}:{Fore.GREEN}'
+            f'{Fore.MAGENTA}{self.path}{Fore.BLUE}:{Fore.GREEN}'
             f'{self.lineno or str()}{Fore.BLUE}:{Style.RESET_ALL} {self.match}'
         )
 
     def __repr__(self):
-        return f'FileMatch("{self.path.name}", {repr(self.match)})'
+        return f'FileMatch("{self.path}", {repr(self.match)})'
 
 
 class PatternFinder:
@@ -135,21 +146,34 @@ class PatternFinder:
         )
         self.limit: int = limit
         self.results: List[FileMatch] = []
-        self.with_lineno: bool = line_numbers
+        self.count_lineno: bool = line_numbers
         self.match_handler: Callable[[str, int, int, FileMatch], bool] = \
             PatternFinder.default_match_handler
 
-    def search(self, path: os.PathLike, recursive: bool = False) -> List[FileMatch]:
+    def search(self, paths: List[os.PathLike], recursive: bool = False) -> List[FileMatch]:
         '''Perform search over file located at the specified path'''
-        path = pathlib.Path(path)
-        if path.is_file():
-            self.__process_file(path)
-            return self.results
-        if not recursive:
-            error_hint = '. Consider a recursive search' if path.is_dir() else ''
-            raise OSError('Supplied path is not a regular file' + error_hint)
-        for file in (pathlib.Path(path / file) for file in os.listdir(path)):
-            self.__search_recursive(file)
+        for path in paths:
+            try:
+                file = open(path)
+            except IsADirectoryError as e:
+                # Handle directories
+                if not recursive:
+                    raise e from None
+                try:
+                    filenames = os.listdir(path)
+                    self.search(
+                        (pathlib.Path(path) / filename for filename in filenames),
+                        recursive=recursive
+                    )
+                except OSError as error:
+                    print(f'{Fore.RED}{Style.BRIGHT}warning:', error, file=sys.stderr)
+                except Exception as error:
+                    raise error from None
+            except OSError as error:
+                print(f'evre: {path}: {error.strerror}', file=sys.stderr)
+            else:
+                # Handle regular files
+                self.__process_file(file)
         return self.results
 
     @staticmethod
@@ -157,36 +181,21 @@ class PatternFinder:
         '''Default match handler accepts every result'''
         return True
 
-    def __process_file(self, path: pathlib.Path):
+    def __process_file(self, file: IO):
         try:
-            content = open(path).read()
+            content = file.read()
         except UnicodeDecodeError:
             # Likely tried to open a binary file for text output
-            return
-        except OSError as error:
-            print(f'evre: {path}: {error.strerror}', file=sys.stderr)
             return
         matches = self.pattern.finditer(content)
         if self.limit > 0:
             matches = limited(matches, self.limit)
         for match in matches:
-            result = FileMatch(path, match)
-            if self.with_lineno:
+            result = FileMatch(file.name, match)
+            if self.count_lineno:
                 result.lineno = content.count(os.linesep, 0, match.start(0)) + 1
             if self.match_handler(content, *match.span(), result):
                 self.results.append(result)
-
-    def __search_recursive(self, path: pathlib.Path):
-        if path.is_file():
-            self.__process_file(path)
-            return
-        if path.is_dir():
-            try:
-                for file in os.listdir(path):
-                    self.__search_recursive(pathlib.Path(path / file))
-            except OSError as error:
-                print(f'{Fore.RED}{Style.BRIGHT}warning:', error, file=sys.stderr)
-        # Else, skip unsupported file-like objects (like fifos)
 
 
 def main():
@@ -195,19 +204,19 @@ def main():
     finder = PatternFinder(
         args.pattern,
         limit=args.limit,
-        line_numbers=args.display_lineno,
+        line_numbers=args.with_lineno,
         case_insensitive=args.case_insensitive,
         dot_all=args.dot_all
     )
-    for result in finder.search(args.path, recursive=args.recursive):
+    for result in finder.search(args.paths, recursive=args.recursive):
         if args.verbose:
             print(result)
         else:
             print(
                 # File path part
-                (f'{Fore.MAGENTA}{result.path}{Fore.CYAN}:' if args.recursive else '') +
+                (f'{Fore.MAGENTA}{result.path}{Fore.CYAN}:' if args.with_filename else '') +
                 # Line number part
-                (f'{Fore.GREEN}{result.lineno}{Fore.CYAN}:' if args.display_lineno else '') +
+                (f'{Fore.GREEN}{result.lineno}{Fore.CYAN}:' if args.with_lineno else '') +
                 # Drop current style
                 f'{Style.RESET_ALL}' +
                 # Match
@@ -220,3 +229,5 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         pass
+    except OSError as error:
+        print(f'evre: {error.filename}: {error.strerror}')
