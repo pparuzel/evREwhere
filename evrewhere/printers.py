@@ -18,18 +18,18 @@ class FileInfoPrefixFormat:
         with_filename: bool = False,
         with_lineno: bool = False,
     ):
-        self.filename_format = (
+        self.filename_format: str = (
             f'{Fore.MAGENTA}' + '{path}' + f'{Fore.CYAN}:'
             if with_filename else
             ''
         )
-        self.linenumber_format = (
+        self.linenumber_format: str = (
             f'{Fore.GREEN}' + '{lineno}' + f'{Fore.CYAN}:'
             if with_lineno else
             ''
         )
 
-    def prefixes(self, path: str, lineno: int):
+    def prefixes(self, path: str, lineno: int) -> str:
         '''Returns prefixes for the FileMatch'''
         return (
             # File path part
@@ -43,7 +43,7 @@ class FileInfoPrefixFormat:
 
 class FileInfoPrefixPrinter(FileInfoPrefixFormat):
     '''Prints colored filename and line number prefixes'''
-    def print(self, path: str, lineno: int, *args):
+    def print(self, path: str, lineno: int, *args: str):
         '''Printing function'''
         print(
             self.prefixes(path, lineno),
@@ -68,11 +68,11 @@ class MatchPrinter(FileInfoPrefixFormat):
         else:
             self.process_match = self.__process_match_template
 
-    def __process_match_template(self, result):
-        return self.template.format(result.match.group(0), *result.match.groups(), C=Fore)
+    def __process_match_template(self, result: FileMatch) -> str:
+        return self.template.format(result.match.group(0), *result.match.groups(), **COLORS)
 
-    def __process_match_colored(self, result):
-        color = cycle(COLORS)
+    def __process_match_colored(self, result: FileMatch) -> str:
+        color = cycle(COLORS.values())
         output = ''
         last_end = 0
         if self.full_lines:
@@ -86,6 +86,7 @@ class MatchPrinter(FileInfoPrefixFormat):
         for i in range(self.group_count):
             if not result.match.group(i + 1):
                 continue
+            # Wrap captures with colors
             start = result.match.start(i + 1) - offset
             end = result.match.end(i + 1) - offset
             output += fullmatch[last_end:start] + Style.BRIGHT + next(color)

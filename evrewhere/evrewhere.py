@@ -57,9 +57,9 @@ def limited(seq: Iterable, limit: int):
         yield value
 
 
-def parse_arguments():
+def parse_arguments() -> argparse.Namespace:
     '''Parse program arguments'''
-    def postparse(args: argparse.Namespace):
+    def postparse(args: argparse.Namespace) -> argparse.Namespace:
         '''Post-parse program arguments'''
         if args.count_only:
             if args.with_lineno:
@@ -228,8 +228,10 @@ class PatternFinder:
                 self.results.append(result)
 
 
-def main():
-    '''Run program as a utility with argument parsing'''
+def main() -> int:
+    '''Run program as a utility with argument parsing
+
+    Returns 0 if a match was found or 1 if none were found'''
     args = parse_arguments()
     finder = PatternFinder(
         args.pattern,
@@ -274,4 +276,5 @@ if __name__ == '__main__':
     except OSError as error:
         print(f'evre: {error.filename}: {error.strerror}')
         EXIT_CODE = 2
-    sys.exit(EXIT_CODE)
+    finally:
+        sys.exit(EXIT_CODE)
