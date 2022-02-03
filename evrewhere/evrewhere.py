@@ -14,6 +14,7 @@ import re
 import sys
 import pathlib
 import argparse
+import collections
 from colorama import init as init_colorama, Fore, Style
 
 
@@ -46,6 +47,9 @@ def parse_arguments():
     '''Parse program arguments'''
     def postparse(args: argparse.Namespace):
         '''Post-parse program arguments'''
+        if args.count_only:
+            if args.with_lineno:
+                raise ValueError('-n and -c are mutually exclusive')
         if args.with_filename is None:
             args.with_filename = args.recursive or len(args.paths) > 1
         elif args.verbose and not args.with_filename:
@@ -100,6 +104,10 @@ def parse_arguments():
     parser.add_argument(
         '-q', '--quiet', '--silent', dest='quiet', action='store_true',
         help='suppress all normal output'
+    )
+    parser.add_argument(
+        '-c', '--count', dest='count_only', action='store_true',
+        help='print only a (positive) number of matches per file'
     )
     parser.add_argument(
         '-v', '--verbose', action='store_true', dest='verbose',
@@ -212,7 +220,21 @@ def main():
         case_insensitive=args.case_insensitive,
         dot_all=args.dot_all
     )
-    for result in finder.search(args.paths, recursive=args.recursive):
+    found = finder.search(args.paths, recursive=args.recursive)
+    exit_code = int(not found)
+    if args.count_only:
+        counts = collections.Counter(result.path for result in found)
+        for path in counts:
+            print(
+                # File path part
+                (f'{Fore.MAGENTA}{path}{Fore.CYAN}:' if args.with_filename else '') +
+                # Drop current style
+                f'{Style.RESET_ALL}'
+                # Display the number of matches
+                f'{counts[path]}'
+            )
+        return exit_code
+    for result in found:
         if args.quiet:
             continue
         if args.verbose:
@@ -228,7 +250,7 @@ def main():
                 # Match
                 args.template.format(result.match.group(0), *result.match.groups())
             )
-    return int(not finder.results)
+    return exit_code
 
 
 if __name__ == '__main__':
