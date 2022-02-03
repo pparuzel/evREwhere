@@ -266,7 +266,7 @@ def main():
 
 
 if __name__ == '__main__':
-    EXIT_CODE = 1
+    EXIT_CODE = 255
     try:
         EXIT_CODE = main()
     except KeyboardInterrupt:
