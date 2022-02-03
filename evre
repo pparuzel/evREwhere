@@ -3,19 +3,12 @@
 
 import os
 import sys
-try:
-    import pathlib
-except ImportError as error:
-    print(error)
-
 
 if sys.version_info[0] < 3:
     print('Python 3 is required for evREwhere to work')
     sys.exit(255)
 
 
-MODULE_DIR = pathlib.Path(__file__).resolve().parent
-SCRIPT_PATH = str(MODULE_DIR / 'evrewhere' / 'evrewhere.py')
 if not os.environ.get('PYTHONDONTWRITEBYTECODE'):
     os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
-os.execvpe(sys.executable, [sys.executable, SCRIPT_PATH] + sys.argv[1:], os.environ)
+os.execvpe(sys.executable, [sys.executable, '-m', 'evrewhere.evrewhere'] + sys.argv[1:], os.environ)
