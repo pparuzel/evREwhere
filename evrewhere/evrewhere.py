@@ -78,6 +78,10 @@ def parse_arguments():
         help='whether to display line numbers (may affect performance)'
     )
     parser.add_argument(
+        '-f', '--format', dest='template', default='{0}',
+        help='display format, {0} means group(0) (default: {0})'
+    )
+    parser.add_argument(
         '-H', '--with-filename', dest='with_filename', action='store_true', default=None,
         help='print file name with output lines'
     )
@@ -94,8 +98,8 @@ def parse_arguments():
         help='dot (.) includes newline characters'
     )
     parser.add_argument(
-        '-f', '--format', dest='template', default='{0}',
-        help='display format, {0} means group(0) (default: {0})'
+        '-q', '--quiet', '--silent', dest='quiet', action='store_true',
+        help='suppress all normal output'
     )
     parser.add_argument(
         '-v', '--verbose', action='store_true', dest='verbose',
@@ -155,10 +159,10 @@ class PatternFinder:
         for path in paths:
             try:
                 file = open(path)
-            except IsADirectoryError as e:
+            except IsADirectoryError as error:
                 # Handle directories
                 if not recursive:
-                    raise e from None
+                    raise error from None
                 try:
                     filenames = os.listdir(path)
                     self.search(
@@ -209,6 +213,8 @@ def main():
         dot_all=args.dot_all
     )
     for result in finder.search(args.paths, recursive=args.recursive):
+        if args.quiet:
+            continue
         if args.verbose:
             print(result)
         else:
@@ -222,12 +228,16 @@ def main():
                 # Match
                 args.template.format(result.match.group(0), *result.match.groups())
             )
+    return int(not finder.results)
 
 
 if __name__ == '__main__':
+    EXIT_CODE = 1
     try:
-        main()
+        EXIT_CODE = main()
     except KeyboardInterrupt:
-        pass
+        EXIT_CODE = 130
     except OSError as error:
         print(f'evre: {error.filename}: {error.strerror}')
+        EXIT_CODE = 2
+    sys.exit(EXIT_CODE)
