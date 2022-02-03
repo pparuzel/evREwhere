@@ -15,6 +15,8 @@ import sys
 import pathlib
 import argparse
 import collections
+from evrewhere.file_match import FileMatch
+from evrewhere.printers import FileInfoPrefixPrinter, MatchPrinter, VerbosePrinter
 
 if os.getenv('EVREDONTUSECOLOR', '') == '1':
     def init_colorama(*_a, **_kw):
@@ -62,6 +64,10 @@ def parse_arguments():
         if args.count_only:
             if args.with_lineno:
                 raise ValueError('-n and -c are mutually exclusive')
+            if args.full_lines:
+                raise ValueError('--full-lines and --count are mutually exclusive')
+        if args.full_lines and args.template is not None:
+            raise ValueError('--full-lines and --format are mutually exclusive')
         if args.with_filename is None:
             args.with_filename = args.recursive or len(args.paths) > 1
         elif args.verbose and not args.with_filename:
@@ -94,7 +100,7 @@ def parse_arguments():
         help='whether to display line numbers (may affect performance)'
     )
     parser.add_argument(
-        '-f', '--format', dest='template', default='{0}',
+        '-f', '--format', dest='template', default=None,
         help='display format, {0} means group(0) (default: {0})'
     )
     parser.add_argument(
@@ -104,6 +110,10 @@ def parse_arguments():
     parser.add_argument(
         '-h', '--no-filename', dest='with_filename', action='store_false', default=None,
         help='suppress the file name prefix on output'
+    )
+    parser.add_argument(
+        '-g', '--full-lines', dest='full_lines', action='store_true',
+        help='print full lines like grep (may affect performance)'
     )
     parser.add_argument(
         '-i', '--ignore-case', dest='case_insensitive', action='store_true',
@@ -132,23 +142,6 @@ def parse_arguments():
         parser.error(error)
 
 
-class FileMatch:
-    '''Store file path, regex Match object and optionally the line number'''
-    def __init__(self, path: pathlib.Path, match: re.Match):
-        self.path: pathlib.Path = path
-        self.match: re.Match = match
-        self.lineno: int = 0
-
-    def __str__(self):
-        return (
-            f'{Fore.MAGENTA}{self.path}{Fore.BLUE}:{Fore.GREEN}'
-            f'{self.lineno or str()}{Fore.BLUE}:{Style.RESET_ALL} {self.match}'
-        )
-
-    def __repr__(self):
-        return f'FileMatch("{self.path}", {repr(self.match)})'
-
-
 class PatternFinder:
     '''File and directory search engine based on supplied regex pattern'''
     def __init__(
@@ -157,7 +150,8 @@ class PatternFinder:
         limit: int = 0,
         line_numbers: bool = False,
         case_insensitive: bool = False,
-        dot_all: bool = False
+        dot_all: bool = False,
+        full_lines: bool = False
     ):
         self.pattern: re.Pattern = (
             create_pattern(
@@ -173,6 +167,10 @@ class PatternFinder:
         self.count_lineno: bool = line_numbers
         self.match_handler: Callable[[str, int, int, FileMatch], bool] = \
             PatternFinder.default_match_handler
+        if full_lines:
+            self.__preprocess_result = self.__calculate_line_bounds
+        else:
+            self.__preprocess_result = lambda *a: None
 
     def search(self, paths: List[os.PathLike], recursive: bool = False) -> List[FileMatch]:
         '''Perform search over file located at the specified path'''
@@ -205,9 +203,16 @@ class PatternFinder:
         '''Default match handler accepts every result'''
         return True
 
+    def __calculate_line_bounds(self, result: FileMatch, content: str, match: re.Match):
+        # Find full line boundaries
+        newline_start = content.rfind('\n', 0, match.span()[0]) + 1
+        newline_end = content.find('\n', match.span()[1])
+        result.line = content[newline_start:newline_end]
+        result.line_offset = newline_start
+
     def __process_file(self, file: IO):
         try:
-            content = file.read()
+            content: str = file.read()
         except UnicodeDecodeError:
             # Likely tried to open a binary file for text output
             return
@@ -216,6 +221,7 @@ class PatternFinder:
             matches = limited(matches, self.limit)
         for match in matches:
             result = FileMatch(file.name, match)
+            self.__preprocess_result(result, content, match)
             if self.count_lineno:
                 result.lineno = content.count(os.linesep, 0, match.start(0)) + 1
             if self.match_handler(content, *match.span(), result):
@@ -230,38 +236,32 @@ def main():
         limit=args.limit,
         line_numbers=args.with_lineno,
         case_insensitive=args.case_insensitive,
-        dot_all=args.dot_all
+        dot_all=args.dot_all,
+        full_lines=args.full_lines,
     )
     found = finder.search(args.paths, recursive=args.recursive)
     exit_code = int(not found)
     if args.count_only:
+        prefix_printer = FileInfoPrefixPrinter(with_filename=args.with_filename)
         counts = collections.Counter(result.path for result in found)
         for path in counts:
-            print(
-                # File path part
-                (f'{Fore.MAGENTA}{path}{Fore.CYAN}:' if args.with_filename else '') +
-                # Drop current style
-                f'{Style.RESET_ALL}'
-                # Display the number of matches
-                f'{counts[path]}'
-            )
+            prefix_printer.print(path, 0, counts[path])
         return exit_code
+    if args.quiet:
+        return exit_code
+    if args.verbose:
+        printer = VerbosePrinter()
+    else:
+        printer = MatchPrinter(
+            args.template,
+            finder.pattern.groups,
+            with_filename=args.with_filename,
+            with_lineno=args.with_lineno,
+            full_lines=args.full_lines,
+        )
+    # Show results
     for result in found:
-        if args.quiet:
-            continue
-        if args.verbose:
-            print(result)
-        else:
-            print(
-                # File path part
-                (f'{Fore.MAGENTA}{result.path}{Fore.CYAN}:' if args.with_filename else '') +
-                # Line number part
-                (f'{Fore.GREEN}{result.lineno}{Fore.CYAN}:' if args.with_lineno else '') +
-                # Drop current style
-                f'{Style.RESET_ALL}' +
-                # Match
-                args.template.format(result.match.group(0), *result.match.groups())
-            )
+        printer.print(result)
     return exit_code
 
 
