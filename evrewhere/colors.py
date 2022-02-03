@@ -2,11 +2,12 @@
 
 from colorama import Fore
 
-COLORS = [
-    Fore.RED,
-    Fore.GREEN,
-    Fore.YELLOW,
-    Fore.BLUE,
-    Fore.MAGENTA,
-    Fore.CYAN,
-]
+COLORS = {
+    'RED': Fore.RED,
+    'GREEN': Fore.GREEN,
+    'YELLOW': Fore.YELLOW,
+    'BLUE': Fore.BLUE,
+    'MAGENTA': Fore.MAGENTA,
+    'CYAN': Fore.CYAN,
+    'None': Fore.RESET,
+}
