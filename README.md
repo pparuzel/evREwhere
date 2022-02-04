@@ -109,6 +109,16 @@ Put these into a template (`-f`) to achieve coloring.
 - `{CYAN}`
 - `{None}` - restores to the default color
 
+# Examples
+
+Examples use evre as a module, not as a utility program like grep. This gives more flexibility to how the output is displayed and allows to overwrite the Match Handler (e.g. to account for false positives).
+
+One example searches through directories looking for unnecessary C++ template parameters.
+
+Here's what it can do:
+
+<img width="70%" height="70%" src="assets/evre_gcc_example.gif" />
+
 # Requirements
 
 - Python 3.8+
