@@ -2,7 +2,7 @@
 
 import re
 import pathlib
-from colorama import Fore, Style
+from evrewhere.colors import Fore, Style
 
 class FileMatch:
     '''Stores regex match information'''

@@ -1,8 +1,7 @@
 '''Printers module'''
 
 from itertools import cycle
-from colorama import Fore, Style
-from evrewhere.colors import COLORS
+from evrewhere.colors import COLORS, Fore, Style
 from evrewhere.file_match import FileMatch
 
 class VerbosePrinter:
