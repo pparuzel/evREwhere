@@ -119,7 +119,7 @@ def main() -> int:
         prefix_printer = FileInfoPrefixPrinter(with_filename=args.with_filename)
         counts = collections.Counter(result.path for result in found)
         for path in counts:
-            prefix_printer.print(path, 0, counts[path])
+            prefix_printer.print(path, 0, counts[path], sep='')
         return exit_code
     if args.quiet:
         return exit_code

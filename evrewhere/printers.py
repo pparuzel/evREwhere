@@ -6,9 +6,9 @@ from evrewhere.file_match import FileMatch
 
 class VerbosePrinter:
     '''Regular printer that shows the result object'''
-    def print(self, result: FileMatch):
+    def print(self, result: FileMatch, *args: str, **kwargs):
         '''Printing function'''
-        print(result)
+        print(result, *args, **kwargs)
 
 
 class FileInfoPrefixFormat:
@@ -42,12 +42,12 @@ class FileInfoPrefixFormat:
 
 class FileInfoPrefixPrinter(FileInfoPrefixFormat):
     '''Prints colored filename and line number prefixes'''
-    def print(self, path: str, lineno: int, *args: str):
+    def print(self, path: str, lineno: int, *args: str, **kwargs):
         '''Printing function'''
         print(
             self.prefixes(path, lineno),
             *args,
-            sep=''
+            **kwargs,
         )
 
 
@@ -94,9 +94,11 @@ class MatchPrinter(FileInfoPrefixFormat):
         output += fullmatch[end:] + Style.RESET_ALL
         return output
 
-    def print(self, result: FileMatch):
+    def print(self, result: FileMatch, *args, **kwargs):
         '''Printing function'''
         print(
             self.prefixes(result.path, result.lineno) +
-            self.process_match(result)
+            self.process_match(result),
+            *args,
+            **kwargs
         )
