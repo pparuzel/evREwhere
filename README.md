@@ -90,7 +90,7 @@ $ evre '"([^,]{2,})".*([A-Z]{2})' cities.csv -g
   - e.g.: `-f '{2} {1}'` or `-f '{1:.4} {1:>30} {1}'`
   - `{0}` is full match, `{1}`, `{2}`, ... represent respective capture group numbers depending on the pattern
 - Templates accept colors, e.g.: `-f '{RED}{1}{None}:{2} {3}'`
-- With `-a`, `--dot-all` - dot (.) can include newline characters
+- With `-a`, `--dot-all` - dot (.) can include newline characters and search multiline
 - Symbolic links are not recognized and ignored
 - Not possible to pipe or read from standard input (restriction by design, at least for now)
 - `evre` does not (yet?) provide on-the-fly results - these are cached
