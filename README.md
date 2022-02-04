@@ -122,4 +122,4 @@ Here's what it can do:
 # Requirements
 
 - Python 3.8+
-- colorama - optional if `EVREDONTUSECOLORS=1` is set in environment variables
+- colorama - optional if `EVREDONTUSECOLOR=1` is set in environment variables
