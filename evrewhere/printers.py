@@ -62,7 +62,7 @@ class MatchPrinter(FileInfoPrefixFormat):
         self.template = template or '{0}'
         self.group_count = group_count
         self.full_lines = full_lines
-        if template is None or group_count > 0:
+        if template is None:
             self.process_match = self.__process_match_colored
         else:
             self.process_match = self.__process_match_template
