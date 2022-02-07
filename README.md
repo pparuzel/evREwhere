@@ -92,7 +92,6 @@ $ evre '"([^,]{2,})".*([A-Z]{2})' cities.csv -g
 - Templates accept colors, e.g.: `-f '{RED}{1}{None}:{2} {3}'`
 - With `-a`, `--dot-all` - dot (.) can include newline characters and search multiline
 - Symbolic links are not recognized and ignored
-- Not possible to pipe or read from standard input (restriction by design, at least for now)
 - `evre` does not (yet?) provide on-the-fly results - these are cached
 - `grep` is more performance-oriented, though, `evre` does not fall behind too far
 - By default, only matches are displayed as results. However, they can be shown as lines (`-g`) like in `grep`

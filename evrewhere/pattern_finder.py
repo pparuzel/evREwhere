@@ -2,6 +2,7 @@
 
 from typing import Callable, Union, Iterable, List, IO
 
+import io
 import os
 import re
 import sys
@@ -63,7 +64,7 @@ class PatternFinder:
         '''Perform search over file located at the specified path'''
         for path in paths:
             try:
-                file = open(path)
+                file = open(path) if not isinstance(path, io.TextIOBase) else path
             except IsADirectoryError as error:
                 # Handle directories
                 if not recursive:

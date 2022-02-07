@@ -10,6 +10,7 @@ Examples needed here...
 import sys
 import pathlib
 import argparse
+import traceback
 import collections
 from evrewhere import PatternFinder
 from evrewhere.printers import FileInfoPrefixPrinter, MatchPrinter, VerbosePrinter
@@ -19,6 +20,8 @@ def parse_arguments() -> argparse.Namespace:
     '''Parse program arguments'''
     def postparse(args: argparse.Namespace) -> argparse.Namespace:
         '''Post-parse program arguments'''
+        if not sys.stdin.isatty():
+            args.paths.append(sys.stdin)
         if args.count_only:
             if args.with_lineno:
                 raise ValueError('-n and -c are mutually exclusive')
@@ -42,7 +45,7 @@ def parse_arguments() -> argparse.Namespace:
         help='pattern used in search'
     )
     parser.add_argument(
-        'paths', nargs='+', type=pathlib.Path,
+        'paths', nargs='*', type=pathlib.Path,
         help='path to a directory (-r required) or file'
     )
     parser.add_argument(
@@ -148,5 +151,10 @@ if __name__ == '__main__':
     except OSError as error:
         print(f'evre: {error.filename}: {error.strerror}')
         EXIT_CODE = 2
-    finally:
+    except SystemExit:
         sys.exit(EXIT_CODE)
+    except:  # pylint: disable=bare-except
+        # This bare except makes sure that all exceptions
+        # have a defined exit code and are printed properly
+        traceback.print_exc()
+    sys.exit(EXIT_CODE)
