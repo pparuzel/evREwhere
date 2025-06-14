@@ -1,5 +1,5 @@
 [tool.ruff]
-src = ["evrewhere", "examples"]
+src = ["evre.py", "evrewhere", "examples"]
 line-length = 88
 exclude = [
 	".git"

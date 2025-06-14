@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import io
 import logging
 import os
 import pathlib
 import re
+import sys
 from dataclasses import dataclass
 from typing import IO, TYPE_CHECKING, Any, Callable
 
@@ -121,12 +123,16 @@ class PatternFinder:
 
     def search(
         self,
-        paths: Iterable[os.PathLike],
+        paths: Iterable[os.PathLike | io.TextIOWrapper],
         *,
         recursive: bool = False,
     ) -> list[FileMatch]:
         """Perform search over file located at the specified path."""
-        for path in map(pathlib.Path, paths):
+        for path_or_stdin in paths:
+            if isinstance(path_or_stdin, io.TextIOWrapper):
+                self.__process_file(sys.stdin)
+                continue
+            path = pathlib.Path(path_or_stdin)
             if path.is_dir():
                 if not recursive:
                     raise ValueError(DIR_RECURSIVE_SEARCH_REQUIRED_MSG.format(path))
@@ -151,13 +157,13 @@ class PatternFinder:
                         path,
                         error.strerror,
                     )
-            else:
-                logger.warning(
-                    "%s%s%s is not a regular file and was skipped.",
-                    Fore.YELLOW,
-                    Style.BRIGHT,
-                    path,
-                )
+                continue
+            logger.warning(
+                "%s%s%s is not a regular file and was skipped.",
+                Fore.YELLOW,
+                Style.BRIGHT,
+                path,
+            )
         return self.results
 
     @staticmethod

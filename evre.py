@@ -13,6 +13,7 @@ import collections
 import logging
 import pathlib
 import sys
+from typing import NoReturn
 
 from evrewhere import PatternFinder, PatternFinderConfig
 from evrewhere.printers import FileInfoPrefixPrinter, MatchPrinter, VerbosePrinter
@@ -29,6 +30,44 @@ logging.basicConfig(
 logger = logging.getLogger("evrewhere")
 
 
+def postparse(args: argparse.Namespace) -> argparse.Namespace:
+    """Validate parsed arguments.
+
+    Post-processes parsed command-line arguments to enforce mutual
+    exclusions, set defaults, and validate input.
+
+    Args:
+        args (argparse.Namespace): The parsed command-line arguments.
+
+    Returns:
+        argparse.Namespace: The updated and validated arguments namespace.
+
+    Raises:
+        ValueError: If required arguments are missing, or if mutually exclusive
+            options are used together.
+
+    """
+    # Post-parse program arguments
+    if not sys.stdin.isatty():
+        args.paths.append(sys.stdin)
+    elif not args.paths:
+        msg = "No paths provided, please specify a file or directory."
+        raise ValueError(msg)
+    if args.count_only:
+        if args.with_lineno:
+            msg = COUNT_LINENO_MUT_EXCL
+            raise ValueError(msg)
+        if args.full_lines:
+            raise ValueError(COUNT_FULL_LINES_MUT_EXCL)
+    if args.full_lines and args.template is not None:
+        raise ValueError(FULL_LINES_FORMAT_MUT_EXCL)
+    if args.with_filename is None:
+        args.with_filename = args.recursive or len(args.paths) > 1
+    elif args.verbose and not args.with_filename:
+        raise ValueError(VERBOSE_NO_FILENAME_EXCL)
+    return args
+
+
 def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments for the evREwhere utility.
 
@@ -36,26 +75,6 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
         argparse.Namespace: Parsed arguments with defaults applied
 
     """
-
-    # Parse program arguments
-    def postparse(args: argparse.Namespace) -> argparse.Namespace:
-        # Post-parse program arguments
-        if not sys.stdin.isatty():
-            args.paths.append(sys.stdin)
-        if args.count_only:
-            if args.with_lineno:
-                msg = COUNT_LINENO_MUT_EXCL
-                raise ValueError(msg)
-            if args.full_lines:
-                raise ValueError(COUNT_FULL_LINES_MUT_EXCL)
-        if args.full_lines and args.template is not None:
-            raise ValueError(FULL_LINES_FORMAT_MUT_EXCL)
-        if args.with_filename is None:
-            args.with_filename = args.recursive or len(args.paths) > 1
-        elif args.verbose and not args.with_filename:
-            raise ValueError(VERBOSE_NO_FILENAME_EXCL)
-        return args
-
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument(
         "--help",
@@ -69,7 +88,7 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "paths",
-        nargs="+",
+        nargs="*",
         type=pathlib.Path,
         help="path to a directory (-r required) or file",
     )
@@ -210,19 +229,24 @@ def parse_and_run(argv: list[str] | None = None) -> int:
     return exit_code
 
 
-if __name__ == "__main__":
-    EXIT_CODE = 255
+def main() -> NoReturn:
+    """Main function to run the evREwhere utility."""
+    exit_code = 255
     try:
-        EXIT_CODE = parse_and_run()
+        exit_code = parse_and_run()
     except KeyboardInterrupt:
-        EXIT_CODE = 130
+        exit_code = 130
     except OSError as error:
         logger.exception("evre: %s: %s", error.filename, error.strerror)
-        EXIT_CODE = 2
-    except Exception as error:  # noqa: BLE001
-        logger.error("evre: %s", error)
-        EXIT_CODE = 1
+        exit_code = 2
+    except Exception:
+        logger.exception("evre: unexpected error")
+        exit_code = 1
     except SystemExit:
         pass
     finally:
-        sys.exit(EXIT_CODE)
+        sys.exit(exit_code)
+
+
+if __name__ == "__main__":
+    main()
