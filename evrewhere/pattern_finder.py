@@ -8,8 +8,7 @@ import os
 import pathlib
 import re
 import sys
-from dataclasses import dataclass
-from typing import IO, TYPE_CHECKING, Any, Callable
+from typing import IO, TYPE_CHECKING, Any, Callable, NamedTuple
 
 from evrewhere import FileMatch
 from evrewhere.colors import Fore, Style
@@ -46,8 +45,7 @@ def limited(seq: Iterable, limit: int) -> Generator[Any, Any, None]:
         yield value
 
 
-@dataclass
-class PatternFinderConfig:
+class PatternFinderConfig(NamedTuple):
     """Configuration options for PatternFinder.
 
     Attributes:
@@ -192,7 +190,7 @@ class PatternFinder:
         try:
             content: str = file.read()
         except UnicodeDecodeError:
-            # Likely tried to open a binary file for text output
+            # Likely tried to open a binary file for text output.
             return
         matches = self.pattern.finditer(content)
         if self.limit > 0:

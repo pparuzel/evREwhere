@@ -1,8 +1,12 @@
 [tool.ruff]
-src = ["evre.py", "evrewhere", "examples"]
+src = ["evrewhere"]
 line-length = 88
-exclude = [
-	".git"
+exclude = [".git"]
+include = [
+    "evre.py",
+    "evrewhere/**/*.py",
+    "examples/**/*.py",
+    "**/pyproject.toml"
 ]
 indent-width = 4
 
